@@ -116,7 +116,7 @@ python manage.py createsuperuser
 
 ## 📸 Démonstration
 
-[Voir la vidéo de démonstration](https://youtu.be/6QDxlkusEGM?si=Dn3r0RBa3iv3-Q1j)
+[Voir la vidéo de démonstration](https://youtu.be/UCbW-N0-ERo?si=UIMrHHveOG_RXcFi)
 
 
 ---
