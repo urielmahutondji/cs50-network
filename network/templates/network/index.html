@@ -1,0 +1,173 @@
+{% extends "network/layout.html" %}
+
+{% block body %}
+
+    <div class="container my-4">
+        <div class="row">
+            <div class="col-lg-8 mx-auto">
+                
+                <div class="card shadow-sm mb-4">
+                    <div class="card-body">
+                        <h5 class="card-title mb-3"><i class="fas fa-pen me-2 text-primary"></i>New Post</h5>
+                        <form action="{% url 'create_post' %}" method="post">
+                            {% csrf_token %}
+                            <div class="mb-3">
+                                <textarea class="form-control" name="content" rows="3" placeholder="What do you want to publish today ?"></textarea>
+                            </div>
+                            <div class="d-flex justify-content-between align-items-center">
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="ri-send-plane-fill me-1"></i>Post
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+
+                
+                <div class="posts-container">
+                    
+                {% for post in page_obj %}
+                    <div class="card shadow-sm mb-3 post-card">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between align-items-start mb-2">
+                                <div class="d-flex align-items-center">
+                                    <div class="profile-avatar me-3">
+                                        <i class="ri-account-circle-fill text-primary fs-2"></i>
+                                    </div>
+                                    <div class="d-flex flex-column">
+                                        <a href="{% url 'profile' post.user.username %}" class="mb-0 fw-bold text-primary text-decoration-none">{{ post.user.username }}</a>
+                                        <small class="text-muted">{{ post.timestamp }}</small>
+                                    </div>
+                                </div>
+                                
+                            </div>
+                            
+                            <p class="post-content" id="content-{{ post.id }}">
+                                {{ post.content }}
+                            </p>
+                            
+                            <div class="d-flex justify-content-between align-items-center mt-3">
+                                <button class="btn {% if user in post.likes.all %}btn-danger{% else %}btn-outline-danger{% endif %} btn-sm like-btn" data-post-id="{{ post.id }}">
+                                    <i class="{% if user in post.likes.all %}ri-heart-fill{% else %}ri-heart-line{% endif %} me-1"></i><span class="like-count">{{ post.likes.count }}</span>
+                                </button>
+                                
+                                {% if user == post.user %}
+                                    <button class="btn btn-outline-primary btn-sm edit-btn" data-post-id="{{ post.id }}">
+                                        <i class="ri-edit-2-line me-2"></i>Edit
+                                    </button>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                {% endfor %}
+
+                <nav aria-label="...">
+                    <ul class="pagination justify-content-center">
+                        {% if page_obj.has_previous %}
+                        <li class="page-item"><a class="page-link" href="?page=1">&laquo; First</a></li>
+                        <li class="page-item"><a href="?page={{ page_obj.previous_page_number }}" class="page-link">Previous</a></li>
+                        
+                        {% endif %}
+
+                        <li class="page-item active">
+                        <a class="page-link" href="#" aria-current="page">Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}.</a>
+                        </li>
+                        
+                        {% if page_obj.has_next %}
+                        <li class="page-item"><a class="page-link" href="?page={{ page_obj.next_page_number }}">Next</a></li>
+                        <li class="page-item"><a class="page-link" href="?page={{ page_obj.paginator.num_pages }}">Last &raquo;</a></li>
+                        {% endif %}
+                    </ul>
+                </nav>
+
+            </div>
+        </div>
+    </div>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/js/bootstrap.bundle.min.js"></script>
+        <script>
+            
+            document.addEventListener('DOMContentLoaded', function() {
+                document.querySelectorAll('.like-btn').forEach(button => {
+                    button.addEventListener('click', function() {
+                        const postId = this.dataset.postId;
+                        const likeCountSpan = this.querySelector('.like-count');
+                        const icon = this.querySelector('i');
+
+                        fetch('/like_post', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'X-CSRFToken': '{{ csrf_token }}'
+                            },
+                            body: JSON.stringify({'post_id': postId})
+                        })
+                        .then(response => response.json())
+                        .then(data => {
+                            if (data.success) {
+                                likeCountSpan.textContent = data.likes;
+                                if (data.liked) {
+                                    this.classList.remove('btn-outline-danger');
+                                    this.classList.add('btn-danger');
+                                    icon.classList.remove('ri-heart-line');
+                                    icon.classList.add('ri-heart-fill');
+                                } else {
+                                    this.classList.add('btn-outline-danger');
+                                    this.classList.remove('btn-danger');
+                                    icon.classList.add('ri-heart-line');
+                                    icon.classList.remove('ri-heart-fill');
+                                }
+                            }
+                        });
+                    });
+                });
+
+
+                document.querySelectorAll('.edit-btn').forEach(button => {
+                    button.addEventListener('click', function() {
+                        const postId = this.dataset.postId;
+                        const contentEl = document.getElementById(`content-${postId}`);
+                        const originalText = contentEl.textContent.trim();
+
+                        
+                        contentEl.innerHTML = `
+                            <textarea class="form-control mb-2" id="edit-textarea-${postId}">${originalText}</textarea>
+                            <button class="btn btn-primary btn-sm save-btn" data-post-id="${postId}">
+                                <i class="ri-check-line me-1"></i>Save
+                            </button>
+                            <button class="btn btn-danger btn-sm cancel-btn" data-post-id="${postId}">
+                                <i class="ri-close-line me-1"></i>Cancel
+                            </button>
+                        `;
+
+                        
+                        contentEl.querySelector('.save-btn').addEventListener('click', function() {
+                            const newContent = document.getElementById(`edit-textarea-${postId}`).value;
+
+                            fetch('/edit_post', {
+                                method: 'POST',
+                                headers: {
+                                    'Content-Type': 'application/json',
+                                    'X-CSRFToken': '{{ csrf_token }}'
+                                },
+                                body: JSON.stringify({'post_id': postId, 'content': newContent})
+                            })
+                            .then(response => response.json())
+                            .then(data => {
+                                if (data.success) {
+                                    contentEl.innerHTML = newContent; 
+                                } else {
+                                    alert('Error updating post.');
+                                }
+                            });
+                        });
+
+                        
+                        contentEl.querySelector('.cancel-btn').addEventListener('click', function() {
+                            contentEl.innerHTML = originalText;
+                        });
+                    });
+                });
+            });
+
+        </script>
+{% endblock %}
